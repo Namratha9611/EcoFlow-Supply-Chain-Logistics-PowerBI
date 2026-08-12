@@ -1,0 +1,149 @@
+/* ============================================================================
+   POWER BI DAX MEASURES LIBRARY
+   Project: EcoFlow — Supply Chain & Logistics Intelligence Dashboard
+   Table Name: DataCoSupplyChainDataset
+   ============================================================================ */
+
+-- ============================================================================
+-- 1. EXECUTIVE & FINANCIAL METRICS
+-- ============================================================================
+
+Total Sales = 
+SUM(DataCoSupplyChainDataset[Sales])
+
+Total Profit = 
+SUM(DataCoSupplyChainDataset[Order Profit Per Order])
+
+Profit Margin % = 
+DIVIDE([Total Profit], [Total Sales], 0)
+
+Total Orders = 
+DISTINCTCOUNT(DataCoSupplyChainDataset[Order Id])
+
+Total Order Items = 
+COUNT(DataCoSupplyChainDataset[Order Item Id])
+
+Average Order Value (AOV) = 
+DIVIDE([Total Sales], [Total Orders], 0)
+
+Total Discount Amount = 
+SUM(DataCoSupplyChainDataset[Order Item Discount])
+
+Average Discount Rate = 
+AVERAGE(DataCoSupplyChainDataset[Order Item Discount Rate])
+
+
+-- ============================================================================
+-- 2. LOGISTICS & DELIVERY PERFORMANCE METRICS
+-- ============================================================================
+
+Total Shipments = 
+COUNTROWS(DataCoSupplyChainDataset)
+
+-- On-Time Definition: Advance shipping + Shipping on time
+-- Verified from raw data: 73,788 / 180,519 = 40.88%
+On-Time Shipments = 
+CALCULATE(
+    COUNTROWS(DataCoSupplyChainDataset),
+    DataCoSupplyChainDataset[Delivery Status] = "Advance shipping" ||
+    DataCoSupplyChainDataset[Delivery Status] = "Shipping on time"
+)
+
+Late Shipments = 
+CALCULATE(
+    COUNTROWS(DataCoSupplyChainDataset),
+    DataCoSupplyChainDataset[Delivery Status] = "Late delivery"
+)
+
+On-Time Delivery Rate % = 
+DIVIDE([On-Time Shipments], [Total Shipments], 0)
+
+Late Delivery Rate % = 
+DIVIDE([Late Shipments], [Total Shipments], 0)
+
+Late Delivery Risk Rate % = 
+AVERAGE(DataCoSupplyChainDataset[Late_delivery_risk])
+
+Avg Scheduled Shipping Days = 
+AVERAGE(DataCoSupplyChainDataset[Days for shipment (scheduled)])
+
+Avg Real Shipping Days = 
+AVERAGE(DataCoSupplyChainDataset[Days for shipping (real)])
+
+Avg Shipping Delay (Days) = 
+AVERAGE(DataCoSupplyChainDataset[Shipping Delay (Days)])
+
+
+-- ============================================================================
+-- 3. PRODUCT & CATEGORY INTELLIGENCE METRICS
+-- ============================================================================
+
+Total Quantity Sold = 
+SUM(DataCoSupplyChainDataset[Order Item Quantity])
+
+Average Product Price = 
+AVERAGE(DataCoSupplyChainDataset[Product Price])
+
+Active Categories Count = 
+DISTINCTCOUNT(DataCoSupplyChainDataset[Category Name])
+
+Active Departments Count = 
+DISTINCTCOUNT(DataCoSupplyChainDataset[Department Name])
+
+Active Products Count = 
+DISTINCTCOUNT(DataCoSupplyChainDataset[Product Card Id])
+
+
+-- ============================================================================
+-- 4. TIME INTELLIGENCE MEASURES (MONTHLY / YOY / MOM)
+-- ============================================================================
+
+Sales PM (Prior Month) = 
+CALCULATE(
+    [Total Sales],
+    PREVIOUSMONTH(Dim_Date[Date])
+)
+
+Sales MoM Growth % = 
+VAR PrevMonthSales = [Sales PM (Prior Month)]
+RETURN
+IF(
+    ISBLANK(PrevMonthSales) || PrevMonthSales = 0,
+    BLANK(),
+    DIVIDE([Total Sales] - PrevMonthSales, PrevMonthSales, 0)
+)
+
+Sales SPLY (Same Period Last Year) = 
+CALCULATE(
+    [Total Sales],
+    SAMEPERIODLASTYEAR(Dim_Date[Date])
+)
+
+Sales YoY Growth % = 
+VAR SPLY = [Sales SPLY (Same Period Last Year)]
+RETURN
+IF(
+    ISBLANK(SPLY) || SPLY = 0,
+    BLANK(),
+    DIVIDE([Total Sales] - SPLY, SPLY, 0)
+)
+
+Profit MoM Growth % = 
+VAR PrevMonthProfit = CALCULATE([Total Profit], PREVIOUSMONTH(Dim_Date[Date]))
+RETURN
+IF(
+    ISBLANK(PrevMonthProfit) || PrevMonthProfit = 0,
+    BLANK(),
+    DIVIDE([Total Profit] - PrevMonthProfit, ABS(PrevMonthProfit), 0)
+)
+
+
+-- ============================================================================
+-- 5. ROW-LEVEL SECURITY (RLS) ROLE EXPRESSIONS
+-- ============================================================================
+
+-- Role: EuropeManager
+-- DataCoSupplyChainDataset[Order Region] IN {"Western Europe", "Southern Europe", "Northern Europe"}
+
+-- Role: LATAMManager
+-- DataCoSupplyChainDataset[Market] = "LATAM"
